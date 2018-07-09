@@ -1,0 +1,22 @@
+account:
+  client_id: ""
+  client_secret: ""
+  refresh_token: ""
+  playlist_id: ""
+  user_id: ""
+  access_token: ""
+
+system:
+  range: "week"
+  max_depth: 5
+  max_playlist_length: 50
+  log_level: "DEBUG"
+
+urls:
+  reddit_base: "https://www.reddit.com/r/listentothis/top.json"
+  spotify_base: "https://api.spotify.com/v1/"
+  spotify_search: "search?"
+  day: "?sort=top&t=day"
+  week: "?sort=top&t=week"
+  month: "?sort=top&t=month"
+  year: "?sort=top&t=year"
