@@ -12,7 +12,7 @@ config_dir = File.join(root_dir, 'config')
 playlist_dir = File.join(root_dir, 'playlists')
 
 config = YAML.load_file File.join(config_dir, 'main.yaml')
-logger = Logger.new(File.join(root_dir, 'log.log'), 'daily')
+logger = Logger.new(File.join(root_dir, 'log/log'), 'daily')
 
 logger.level = Logger.const_get config['system']['log_level']
 
@@ -22,6 +22,7 @@ songs = []
 song_urls = []
 page = ''
 max_entries_reached = false
+failed_searches = 0
 
 begin
   request_body = {
@@ -54,9 +55,14 @@ loop do
       items = json['data']['children']
 
       items.each do |item|
+
+        # This regex covers the standard title structure which is only semi enforced.
+        # As a result, some titles may be incorrect however they will not yield a result when searching for the song on spotify.
+        # In the extremely unlikely occasion that a song is found with an incorrect parse, meh. This is to find new music so still successful i guess...
         artist = /.+?(?= -)/.match(item['data']['title']).to_s
         title = /(?<=- ).+?(?= \[)/.match(item['data']['title']).to_s
 
+        # If either the artist or title have no match, skip to the next entry
         if artist.empty? or title.empty?
           logger.debug "Failed to parse \"#{item}\" - (title: #{title} , artist: #{artist})"
 
@@ -71,11 +77,23 @@ loop do
         begin
           data = JSON.parse(RestClient.get(url, {:Authorization => "Bearer #{access_token}"}))
         rescue Exception => e
-          logger.fatal "Failed to search spotify with #{url}: #{e}"
+          # If the search fails, increment the failure counter by one and skip to the next listing
+          logger.info "Failed to search spotify with #{url}: #{e}"
 
-          throw e
+          failed_searches += 1
+
+          # Exit the script if the number of failed calls exceeds the limit.
+          # Should inspect what the error is and determine if the script should terminate immediately, retry the same request, or skip the current request.
+          if failed_searches > config['system']['maximum_failures']
+            logger.error "Number of failed calls exceeded. Terminating script"
+
+            exit 1
+          else
+            next
+          end
         end
-      
+
+        # Rescue nil can be considered bad practice, however I think that it is more explicit as to what is going on then wrapping this in a begin rescue block
         song_url = data['tracks']['items'][0]['uri'] rescue nil
           
         if song_url
@@ -87,7 +105,9 @@ loop do
         else
           logger.debug "Unable to find song \"#{title} by #{artist}\"."
         end
-          
+
+        # Set the maximum entries flag to true if we have reached the maximum.
+        # This will be checked after every song parse.
         if number_of_results >= 50
           max_entries_reached = true
 
@@ -95,6 +115,7 @@ loop do
         end
       end
 
+      # Update the reddit search parameters in preparation for the next page
       page = "&count=25&after=#{json['data']['after']}&limit=25/"
     end
 
@@ -103,6 +124,8 @@ loop do
 
     throw e
   ensure
+
+    # If the maximum number of songs have been reached or the maximum reddit search depth has been reached, break out of the loop and proceed to playlist creation
     if max_entries_reached
       logger.debug "Song limit of #{config['system']['max_playlist_length']} reached."
 
@@ -113,9 +136,9 @@ loop do
       logger.debug "Maximum page depth of #{config['system']['max_depth']} reached with #{number_of_results}."
 
       break
+    else
+      current_depth += 1
     end
-
-    current_depth += 1
   end
 end
 
@@ -139,8 +162,6 @@ params = {
   headers: {'Authorization' => "Bearer #{access_token}"},
   payload: { tracks: tracks_to_remove }.to_json
 }
-
-#params[:payload] = params[:payload].to_json
 
 begin
   RestClient::Request.execute(params)

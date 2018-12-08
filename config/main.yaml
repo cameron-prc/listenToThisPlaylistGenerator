@@ -11,6 +11,7 @@ system:
   max_depth: 5
   max_playlist_length: 50
   log_level: "DEBUG"
+  maximum_failures: 5
 
 urls:
   reddit_base: "https://www.reddit.com/r/listentothis/top.json"
