@@ -1,10 +1,10 @@
 account:
-  client_id: ""
-  client_secret: ""
-  refresh_token: ""
-  playlist_id: ""
-  user_id: ""
-  access_token: ""
+  client_id:
+  client_secret:
+  refresh_token:
+  playlist_id:
+  user_id:
+  access_token:
 
 system:
   range: "week"
@@ -21,3 +21,4 @@ urls:
   week: "?sort=top&t=week"
   month: "?sort=top&t=month"
   year: "?sort=top&t=year"
+  firebase:
